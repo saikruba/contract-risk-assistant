@@ -9,9 +9,10 @@ if uploaded_file is not None:
     st.write("Uploading and analyzing...")
 
     try:
+        # Use the full path including /api/v1
         response = requests.post(
-            "http://127.0.0.1:8000/upload-contract",
-            files={"file": uploaded_file}
+            "http://127.0.0.1:8000/api/v1/upload-contract",
+            files={"file": (uploaded_file.name, uploaded_file, "text/plain")}
         )
 
         if response.status_code == 200:
@@ -33,5 +34,5 @@ if uploaded_file is not None:
         else:
             st.error("Backend error")
 
-    except:
-        st.error("FastAPI not running")
+    except requests.exceptions.RequestException as e:
+        st.error(f"FastAPI not running: {e}")
