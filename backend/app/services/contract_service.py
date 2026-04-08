@@ -1,36 +1,61 @@
 from app.schemas.contract_schema import ContractResponse
 from langfuse import get_client
 from app.core.config import settings
+import pdfplumber
 import time
 
 # -------------------------------
-# Fail-fast check
+# Langfuse Setup
 # -------------------------------
-if not all([settings.LANGFUSE_PUBLIC_KEY, settings.LANGFUSE_SECRET_KEY, settings.LANGFUSE_BASE_URL]):
-    raise ValueError("Langfuse credentials or base URL missing! Check .env")
+if not all([
+    settings.LANGFUSE_PUBLIC_KEY,
+    settings.LANGFUSE_SECRET_KEY,
+    settings.LANGFUSE_BASE_URL
+]):
+    raise ValueError("Langfuse credentials missing! Check .env")
 
-# -------------------------------
-# Initialize Langfuse client (reads .env automatically)
-# -------------------------------
 langfuse = get_client()
 
-def analyze_contract(filename: str) -> ContractResponse:
+# -------------------------------
+# PDF Extraction
+# -------------------------------
+def extract_text_from_pdf(file_path: str) -> str:
+    text = ""
+    with pdfplumber.open(file_path) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+    return text
+
+# -------------------------------
+# Main Function
+# -------------------------------
+def analyze_contract(file_path: str) -> ContractResponse:
     debug_logs = [
         "FUNCTION CALLED",
-        f"Public Key: {settings.LANGFUSE_PUBLIC_KEY}",
-        f"Secret Key: {settings.LANGFUSE_SECRET_KEY}",
-        f"Base URL: {settings.LANGFUSE_BASE_URL}"
+        f"File Path: {file_path}"
     ]
 
     try:
-        with langfuse.start_as_current_observation(as_type="span", name="contract_analysis") as span:
+        # Step 1: Extract text
+        text = extract_text_from_pdf(file_path)
+        debug_logs.append(f"Extracted text length: {len(text)}")
+        debug_logs.append(f"First 500 chars: {text[:500]}")
+
+        # Step 2: Langfuse tracing
+        with langfuse.start_as_current_observation(
+            as_type="span",
+            name="contract_analysis"
+        ) as span:
             debug_logs.append("Span started")
 
+            # Dummy logic (replace later)
             risk = "high"
             issues = ["missing clause"]
 
             span.update(output={
-                "filename": filename,
+                "filename": file_path,
                 "risk": risk,
                 "issues": issues
             })
@@ -45,12 +70,12 @@ def analyze_contract(filename: str) -> ContractResponse:
         debug_logs.append("TRACE SENT")
 
     except Exception as e:
-        debug_logs.append(f"Langfuse error: {str(e)}")
+        debug_logs.append(f"Error: {str(e)}")
         risk = "low"
-        issues = ["missing clause"]
+        issues = ["parsing failed"]
 
     return ContractResponse(
-        filename=filename,
+        filename=file_path,
         risk=risk,
         issues=issues,
         debug=debug_logs

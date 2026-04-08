@@ -27,3 +27,5 @@ Thumbs.db
 *.log
 *.sqlite3
 
+# Ignore uploads
+uploads/

@@ -3,7 +3,7 @@ import requests
 
 st.title("Contract Risk Assistant")
 
-uploaded_file = st.file_uploader("Upload a contract file")
+uploaded_file = st.file_uploader("Upload a contract file", type=["pdf"])
 
 if uploaded_file is not None:
     st.write("Uploading and analyzing...")
@@ -23,9 +23,11 @@ if uploaded_file is not None:
             st.subheader("Results")
             st.write("Filename:", data["filename"])
             st.write("Risk:", data["risk"])
+
             st.subheader("Issues")
             for issue in data["issues"]:
                 st.warning(issue)
+
             st.subheader("Debug Logs")
             for log in data.get("debug", []):
                 st.write(log)
