@@ -17,7 +17,7 @@ if not all([
 langfuse = get_client()
 
 # -------------------------------
-# PDF Extraction
+# PDF Extraction (Parsing)
 # -------------------------------
 def extract_text_from_pdf(file_path: str) -> str:
     text = ""
@@ -27,6 +27,22 @@ def extract_text_from_pdf(file_path: str) -> str:
             if page_text:
                 text += page_text + "\n"
     return text
+
+# -------------------------------
+# Chunking Function
+# -------------------------------
+def chunk_text(text: str, chunk_size: int = 800, overlap: int = 100):
+    chunks = []
+    start = 0
+
+    while start < len(text):
+        end = start + chunk_size
+        chunk = text[start:end]
+        chunks.append(chunk)
+
+        start += chunk_size - overlap
+
+    return chunks
 
 # -------------------------------
 # Main Function
@@ -41,18 +57,23 @@ def analyze_contract(file_path: str) -> ContractResponse:
         # Step 1: Extract text
         text = extract_text_from_pdf(file_path)
         debug_logs.append(f"Extracted text length: {len(text)}")
-        debug_logs.append(f"First 500 chars: {text[:500]}")
+        debug_logs.append(f"First 801 chars: {text[:801]}")
 
-        # Step 2: Langfuse tracing
+        # Step 2: Chunk text
+        chunks = chunk_text(text)
+        debug_logs.append(f"Total chunks created: {len(chunks)}")
+        debug_logs.append(f"First chunk preview: {chunks[0][:1000]}")
+
+        # Step 3: Langfuse tracing
         with langfuse.start_as_current_observation(
             as_type="span",
             name="contract_analysis"
         ) as span:
             debug_logs.append("Span started")
 
-            # Dummy logic (replace later)
-            risk = "high"
-            issues = ["missing clause"]
+            # Dummy logic (will improve later)
+            risk = "low"
+            issues = [f"{len(chunks)} chunks created"]
 
             span.update(output={
                 "filename": file_path,
@@ -72,7 +93,7 @@ def analyze_contract(file_path: str) -> ContractResponse:
     except Exception as e:
         debug_logs.append(f"Error: {str(e)}")
         risk = "low"
-        issues = ["parsing failed"]
+        issues = ["processing failed"]
 
     return ContractResponse(
         filename=file_path,
