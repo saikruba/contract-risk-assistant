@@ -9,30 +9,28 @@ if uploaded_file is not None:
     st.write("Uploading and analyzing...")
 
     try:
-        # Use the full path including /api/v1
+        files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
+
         response = requests.post(
             "http://127.0.0.1:8000/api/v1/upload-contract",
-            files={"file": (uploaded_file.name, uploaded_file, "text/plain")}
+            files=files
         )
 
         if response.status_code == 200:
             data = response.json()
 
             st.success("Analysis Complete ✅")
-
             st.subheader("Results")
             st.write("Filename:", data["filename"])
             st.write("Risk:", data["risk"])
-
             st.subheader("Issues")
-            if data["issues"]:
-                for issue in data["issues"]:
-                    st.warning(issue)
-            else:
-                st.success("No issues found 🎉")
-
+            for issue in data["issues"]:
+                st.warning(issue)
+            st.subheader("Debug Logs")
+            for log in data.get("debug", []):
+                st.write(log)
         else:
-            st.error("Backend error")
+            st.error(response.text)
 
-    except requests.exceptions.RequestException as e:
-        st.error(f"FastAPI not running: {e}")
+    except Exception as e:
+        st.error(f"Error: {e}")
