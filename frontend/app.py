@@ -3,6 +3,10 @@ import requests
 
 st.title("Contract Risk Assistant")
 
+# -------------------------------
+# Upload Section
+# -------------------------------
+
 uploaded_file = st.file_uploader("Upload a contract file", type=["pdf"])
 
 if uploaded_file is not None:
@@ -20,7 +24,6 @@ if uploaded_file is not None:
             data = response.json()
 
             st.success("Analysis Complete ✅")
-            st.subheader("Results")
             st.write("Filename:", data["filename"])
             st.write("Risk:", data["risk"])
 
@@ -31,6 +34,34 @@ if uploaded_file is not None:
             st.subheader("Debug Logs")
             for log in data.get("debug", []):
                 st.write(log)
+        else:
+            st.error(response.text)
+
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+
+# -------------------------------
+# Query Section
+# -------------------------------
+
+st.subheader("Ask Questions About Contract")
+
+query = st.text_input("Enter your question")
+
+if st.button("Search"):
+    try:
+        response = requests.post(
+            "http://127.0.0.1:8000/api/v1/query",
+            json={"query": query}
+        )
+
+        if response.status_code == 200:
+            results = response.json()["results"]
+
+            st.subheader("Relevant Sections")
+            for r in results:
+                st.info(r)
         else:
             st.error(response.text)
 
