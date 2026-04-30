@@ -20,76 +20,52 @@ def extract_text_from_pdf(file_path: str) -> str:
     text = ""
     with pdfplumber.open(file_path) as pdf:
         for page in pdf.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
+            t = page.extract_text()
+            if t:
+                text += t + "\n"
     return text
 
 
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50):
+def chunk_text(text: str, chunk_size=500, overlap=100):
     chunks = []
     start = 0
 
     while start < len(text):
         end = start + chunk_size
-        chunk = text[start:end]
-        chunks.append(chunk)
-
+        chunks.append(text[start:end])
         start += chunk_size - overlap
 
     return chunks
 
 
 def analyze_contract(file_path: str) -> ContractResponse:
-    debug_logs = [
-        "FUNCTION CALLED",
-        f"File Path: {file_path}"
-    ]
+    debug_logs = []
 
     try:
-        # Step 1: Extract text
         text = extract_text_from_pdf(file_path)
-        debug_logs.append(f"Extracted text length: {len(text)}")
+        debug_logs.append(f"text length: {len(text)}")
 
-        # Step 2: Chunk text
-        chunks = chunk_text(text)
+        chunks = chunk_text(text)[:50]
+        debug_logs.append(f"chunks: {len(chunks)}")
 
-        # ✅ LIMIT CHUNKS
-        chunks = chunks[:50]
-
-        debug_logs.append(f"Total chunks created: {len(chunks)}")
-
-        if chunks:
-            debug_logs.append(f"First chunk preview: {chunks[0][:500]}")
-
-        # Step 3: Store in ChromaDB
+        # ✅ IMPORTANT: use consistent filename
         store_chunks(chunks, file_path)
-        debug_logs.append("Stored chunks in ChromaDB")
 
-        # Step 4: Langfuse tracing
-        with langfuse.start_as_current_observation(
-            as_type="span",
-            name="contract_analysis"
-        ) as span:
+        if langfuse:
+            try:
+                with langfuse.start_as_current_observation(
+                    as_type="span",
+                    name="contract_analysis"
+                ) as span:
+                    span.update(output={"file": file_path})
+            except Exception as e:
+                debug_logs.append(f"Langfuse error: {str(e)}")
 
-            risk = "low"
-            issues = [f"{len(chunks)} chunks stored in vector DB"]
-
-            span.update(output={
-                "filename": file_path,
-                "risk": risk,
-                "issues": issues
-            })
-
-        try:
-            langfuse.flush()
-        except Exception as e:
-            debug_logs.append(f"Flush failed: {str(e)}")
-
-        debug_logs.append("TRACE SENT")
+        risk = "low"
+        issues = ["Stored in vector DB"]
 
     except Exception as e:
-        debug_logs.append(f"Error: {str(e)}")
+        debug_logs.append(str(e))
         risk = "low"
         issues = ["processing failed"]
 

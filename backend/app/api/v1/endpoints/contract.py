@@ -1,9 +1,10 @@
 from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel
 import os
+import uuid
 
 from app.services.contract_service import analyze_contract
-from app.services.vector_service import query_chunks
+from app.agents.qa_agent import qa_agent
 
 router = APIRouter()
 
@@ -13,27 +14,24 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload-contract")
 async def upload_contract(file: UploadFile = File(...)):
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    if not file.filename.endswith(".pdf"):
+        return {"error": "Only PDF allowed"}
 
+    unique_name = f"{uuid.uuid4()}_{file.filename}"
+    file_path = os.path.join(UPLOAD_DIR, unique_name)
+
+    content = await file.read()
     with open(file_path, "wb") as f:
-        f.write(await file.read())
+        f.write(content)
 
     return analyze_contract(file_path)
 
 
-# -------------------------------
-# Query Endpoint
-# -------------------------------
-
 class QueryRequest(BaseModel):
     query: str
+    filename: str
 
 
 @router.post("/query")
 def query_contract(req: QueryRequest):
-    results = query_chunks(req.query)
-
-    return {
-        "query": req.query,
-        "results": results
-    }
+    return qa_agent(req.query, req.filename)

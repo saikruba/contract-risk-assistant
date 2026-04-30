@@ -3,6 +3,14 @@ import requests
 
 st.title("Contract Risk Assistant")
 
+BACKEND_URL = "http://127.0.0.1:8000/api/v1"
+
+# -------------------------------
+# Session State (NEW)
+# -------------------------------
+if "filename" not in st.session_state:
+    st.session_state.filename = None
+
 # -------------------------------
 # Upload Section
 # -------------------------------
@@ -15,15 +23,20 @@ if uploaded_file is not None:
     try:
         files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
 
-        response = requests.post(
-            "http://127.0.0.1:8000/api/v1/upload-contract",
-            files=files
-        )
+        with st.spinner("Processing contract..."):
+            response = requests.post(
+                f"{BACKEND_URL}/upload-contract",
+                files=files
+            )
 
         if response.status_code == 200:
             data = response.json()
 
             st.success("Analysis Complete ✅")
+
+            # ✅ STORE filename (CRITICAL FIX)
+            st.session_state.filename = data["filename"]
+
             st.write("Filename:", data["filename"])
             st.write("Risk:", data["risk"])
 
@@ -50,18 +63,37 @@ st.subheader("Ask Questions About Contract")
 query = st.text_input("Enter your question")
 
 if st.button("Search"):
+
+    # ✅ VALIDATIONS (NEW)
+    if not st.session_state.filename:
+        st.warning("Please upload a contract first.")
+        st.stop()
+
+    if not query:
+        st.warning("Please enter a question.")
+        st.stop()
+
     try:
-        response = requests.post(
-            "http://127.0.0.1:8000/api/v1/query",
-            json={"query": query}
-        )
+        with st.spinner("Searching contract..."):
+            response = requests.post(
+                f"{BACKEND_URL}/query",
+                json={
+                    "query": query,
+                    "filename": st.session_state.filename  # ✅ FIX
+                }
+            )
 
         if response.status_code == 200:
-            results = response.json()["results"]
+            data = response.json()
+
+            # ✅ NEW OUTPUT FORMAT
+            st.subheader("Answer")
+            st.write(data["answer"])
 
             st.subheader("Relevant Sections")
-            for r in results:
+            for r in data["sources"]:
                 st.info(r)
+
         else:
             st.error(response.text)
 

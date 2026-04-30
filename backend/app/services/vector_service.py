@@ -1,42 +1,50 @@
 import chromadb
 import uuid
+from sentence_transformers import SentenceTransformer
 
-# Persistent Chroma DB
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
 client = chromadb.PersistentClient(path="./chroma_db")
-
 collection = client.get_or_create_collection(name="contracts")
 
 
 def store_chunks(chunks, filename):
+    embeddings = model.encode(chunks).tolist()
+
     ids = [str(uuid.uuid4()) for _ in chunks]
+
+    metadatas = [
+        {"source": filename, "chunk_id": i}
+        for i in range(len(chunks))
+    ]
 
     collection.upsert(
         documents=chunks,
+        embeddings=embeddings,
         ids=ids,
-        metadatas=[{"source": filename}] * len(chunks)
+        metadatas=metadatas
     )
 
 
-def query_chunks(query, n_results=5):
+def query_chunks(query, filename=None, n_results=5):
+    query_embedding = model.encode([query]).tolist()
+
     results = collection.query(
-        query_texts=[query],
-        n_results=n_results
+        query_embeddings=query_embedding,
+        n_results=n_results,
+        where={"source": filename} if filename else None
     )
 
-    docs = results["documents"][0]
+    docs = results.get("documents", [[]])[0]
 
-    # ✅ REMOVE DUPLICATES (SMART WAY)
+    # remove duplicates
+    seen = set()
     unique_docs = []
 
     for doc in docs:
-        is_duplicate = False
-
-        for existing in unique_docs:
-            if doc[:150] == existing[:150]:  # compare first 150 chars
-                is_duplicate = True
-                break
-
-        if not is_duplicate:
+        key = doc[:200]
+        if key not in seen:
+            seen.add(key)
             unique_docs.append(doc)
 
     return unique_docs
