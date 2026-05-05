@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import os
 
 from app.services.contract_service import analyze_contract
-from app.services.vector_service import query_chunks
+from app.services.vector_service import query_chunks, reset_db
 
 router = APIRouter()
 
@@ -37,3 +37,8 @@ def query_contract(req: QueryRequest):
         "query": req.query,
         "results": results
     }
+    
+@router.post("/reset")
+def reset_contract_db():
+    reset_db()
+    return {"message": "Reset successful"}

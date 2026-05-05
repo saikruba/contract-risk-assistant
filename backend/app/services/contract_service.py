@@ -47,51 +47,37 @@ def analyze_contract(file_path: str) -> ContractResponse:
     ]
 
     try:
-        # Step 1: Extract text
         text = extract_text_from_pdf(file_path)
         debug_logs.append(f"Extracted text length: {len(text)}")
 
-        # Step 2: Chunk text
         chunks = chunk_text(text)
-
-        # ✅ LIMIT CHUNKS
         chunks = chunks[:50]
 
         debug_logs.append(f"Total chunks created: {len(chunks)}")
 
-        if chunks:
-            debug_logs.append(f"First chunk preview: {chunks[0][:500]}")
-
-        # Step 3: Store in ChromaDB
         store_chunks(chunks, file_path)
-        debug_logs.append("Stored chunks in ChromaDB")
+        debug_logs.append("Stored chunks in DB")
 
-        # Step 4: Langfuse tracing
-        with langfuse.start_as_current_observation(
-            as_type="span",
-            name="contract_analysis"
-        ) as span:
-
-            risk = "low"
-            issues = [f"{len(chunks)} chunks stored in vector DB"]
-
-            span.update(output={
-                "filename": file_path,
-                "risk": risk,
-                "issues": issues
-            })
-
-        try:
-            langfuse.flush()
-        except Exception as e:
-            debug_logs.append(f"Flush failed: {str(e)}")
-
-        debug_logs.append("TRACE SENT")
+        # ✅ REMOVE LANGFUSE FOR NOW
+        risk = "low"
+        issues = [f"{len(chunks)} chunks stored"]
 
     except Exception as e:
-        debug_logs.append(f"Error: {str(e)}")
-        risk = "low"
-        issues = ["processing failed"]
+        import traceback
+        error_msg = str(e)
+        trace = traceback.format_exc()
+
+        print("❌ ERROR:", trace)
+
+        debug_logs.append(error_msg)
+        debug_logs.append(trace)
+
+        return ContractResponse(
+            filename=file_path,
+            risk="error",
+            issues=[error_msg],
+            debug=debug_logs
+        )
 
     return ContractResponse(
         filename=file_path,
