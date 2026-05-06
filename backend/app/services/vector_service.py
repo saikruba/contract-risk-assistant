@@ -19,7 +19,7 @@ def get_collection():
 # -------------------------------
 # STORE
 # -------------------------------
-def store_chunks(chunks, filename):
+def store_chunks(chunks, metadatas):
     collection = get_collection()
 
     ids = [str(uuid.uuid4()) for _ in chunks]
@@ -27,7 +27,7 @@ def store_chunks(chunks, filename):
     collection.upsert(
         documents=chunks,
         ids=ids,
-        metadatas=[{"source": filename}] * len(chunks)
+        metadatas=metadatas
     )
 
     print("Stored chunks:", len(chunks))
@@ -53,14 +53,17 @@ def query_chunks(query, n_results=5):
     )
 
     docs = results.get("documents", [[]])[0]
+    metas = results.get("metadatas", [[]])[0]
 
-    unique_docs = []
-    for doc in docs:
-        if not any(doc[:150] == e[:150] for e in unique_docs):
-            unique_docs.append(doc)
+    output = []
 
-    print("RESULT COUNT:", len(unique_docs))
-    return unique_docs
+    for doc, meta in zip(docs, metas):
+        output.append({
+            "text": doc,
+            "page": meta.get("page", "unknown")
+        })
+
+    return output
 
 
 # -------------------------------

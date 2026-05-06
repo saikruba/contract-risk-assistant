@@ -5,7 +5,6 @@ from app.core.config import settings
 import traceback
 from langfuse import get_client
 
-
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -23,7 +22,7 @@ langfuse = get_client()
 
 
 # -------------------------------
-# PDF LOADER (REPLACED)
+# PDF LOADER
 # -------------------------------
 def extract_text_from_pdf(file_path: str):
     loader = PyPDFLoader(file_path)
@@ -32,7 +31,7 @@ def extract_text_from_pdf(file_path: str):
 
 
 # -------------------------------
-# CHUNKING (UPDATED)
+# CHUNKING
 # -------------------------------
 def chunk_text(docs):
     splitter = RecursiveCharacterTextSplitter(
@@ -66,10 +65,16 @@ def analyze_contract(file_path: str) -> ContractResponse:
         chunks = chunk_text(docs)[:50]
         debug_logs.append(f"Total chunks created: {len(chunks)}")
 
-        # ---------------- VECTOR STORE ----------------
+        # ---------------- VECTOR STORE (UPDATED WITH METADATA) ----------------
         store_chunks(
             [chunk.page_content for chunk in chunks],
-            file_path
+            [
+                {
+                    "source": file_path,
+                    "page": chunk.metadata.get("page", 0) + 1
+                }
+                for chunk in chunks
+            ]
         )
         debug_logs.append("Stored chunks in DB")
 

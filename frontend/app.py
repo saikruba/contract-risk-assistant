@@ -199,4 +199,4 @@ if st.session_state.results:
     st.subheader("Relevant Sections")
 
     for r in st.session_state.results:
-        st.info(r)
+        st.info(f"Page {r['page']}: {r['text']}")
