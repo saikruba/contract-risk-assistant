@@ -4,6 +4,7 @@ import os
 
 from app.services.contract_service import analyze_contract
 from app.services.vector_service import query_chunks, reset_db
+from app.services.llm_service import call_llama
 
 router = APIRouter()
 
@@ -28,13 +29,44 @@ async def upload_contract(file: UploadFile = File(...)):
 class QueryRequest(BaseModel):
     query: str
 
-
 @router.post("/query")
 def query_contract(req: QueryRequest):
     results = query_chunks(req.query)
 
+    # handle empty results
+    if not results:
+        return {
+            "query": req.query,
+            "answer": "No relevant information found in the contract.",
+            "results": []
+        }
+
+    # build context
+    context = "\n\n".join([
+        f"Page {r['page']}: {r['text']}"
+        for r in results
+    ])
+
+    prompt = f"""
+Answer the question based on the contract below.
+
+Question:
+{req.query}
+
+Context:
+{context}
+
+Instructions:
+- Answer in plain English
+- Mention page numbers when relevant
+- Keep it concise
+"""
+
+    answer = call_llama(prompt)
+
     return {
         "query": req.query,
+        "answer": answer,
         "results": results
     }
     
@@ -42,3 +74,5 @@ def query_contract(req: QueryRequest):
 def reset_contract_db():
     reset_db()
     return {"message": "Reset successful"}
+    
+

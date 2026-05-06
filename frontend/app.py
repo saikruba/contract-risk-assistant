@@ -17,6 +17,7 @@ defaults = {
     "uploaded": False,
     "query": "",
     "results": [],
+    "answer": "",
     "uploader_key": 0,
     "reset_trigger": False
 }
@@ -89,30 +90,26 @@ if uploaded_file and not st.session_state.uploaded:
                 st.error(f"Error: {e}")
 
 # -------------------------------
-# RESET BUTTON (FIXED)
+# RESET BUTTON
 # -------------------------------
 if st.sidebar.button("🔄 Reset"):
     st.session_state.reset_trigger = True
 
-# Execute reset ONCE
 if st.session_state.reset_trigger:
     try:
         requests.post("http://127.0.0.1:8000/api/v1/reset")
     except Exception as e:
         st.error(f"Backend reset failed: {e}")
 
-    # clear frontend state
     st.session_state.analysis = None
     st.session_state.uploaded = False
     st.session_state.query = ""
     st.session_state.results = []
+    st.session_state.answer = ""
 
-    # 🔥 CRITICAL: reset uploader
     st.session_state.uploader_key += 1
 
     st.success("Reset successful")
-
-    # prevent duplicate calls
     st.session_state.reset_trigger = False
 
 # -------------------------------
@@ -126,11 +123,11 @@ st.title("📄 Contract Risk Assistant")
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    st.markdown("### Search contract clauses")
+    st.markdown("### Ask questions about the contract")
 
     st.text_input(
         "Search",
-        placeholder="e.g. termination clause",
+        placeholder="e.g. What is the termination clause?",
         key="query",
         label_visibility="collapsed"
     )
@@ -177,7 +174,7 @@ if search_clicked:
             .strip()
         )
 
-        with st.spinner("Searching..."):
+        with st.spinner("Analyzing query..."):
             try:
                 response = requests.post(
                     "http://127.0.0.1:8000/api/v1/query",
@@ -185,12 +182,21 @@ if search_clicked:
                 )
 
                 if response.status_code == 200:
-                    st.session_state.results = response.json()["results"]
+                    data = response.json()
+                    st.session_state.results = data.get("results", [])
+                    st.session_state.answer = data.get("answer", "")
                 else:
                     st.error(response.text)
 
             except Exception as e:
                 st.error(f"Error: {e}")
+
+# -------------------------------
+# DISPLAY ANSWER
+# -------------------------------
+if st.session_state.answer:
+    st.subheader("Answer")
+    st.success(st.session_state.answer)
 
 # -------------------------------
 # DISPLAY RESULTS
@@ -199,4 +205,6 @@ if st.session_state.results:
     st.subheader("Relevant Sections")
 
     for r in st.session_state.results:
-        st.info(f"Page {r['page']}: {r['text']}")
+        page = r.get("page", "unknown")
+        text = r.get("text", "")
+        st.info(f"Page {page}: {text}")
