@@ -2,12 +2,15 @@ from app.schemas.contract_schema import ContractResponse
 from app.services.vector_service import store_chunks
 from app.core.config import settings
 
-import pdfplumber
 import traceback
 from langfuse import get_client
 
+
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 # -------------------------------
-# Langfuse Setup (KEEP OLD WORKING STYLE)
+# Langfuse Setup
 # -------------------------------
 if not all([
     settings.LANGFUSE_PUBLIC_KEY,
@@ -20,35 +23,29 @@ langfuse = get_client()
 
 
 # -------------------------------
-# PDF Extraction
+# PDF LOADER (REPLACED)
 # -------------------------------
-def extract_text_from_pdf(file_path: str) -> str:
-    text = ""
-    with pdfplumber.open(file_path) as pdf:
-        for page in pdf.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
-    return text
+def extract_text_from_pdf(file_path: str):
+    loader = PyPDFLoader(file_path)
+    docs = loader.load()  # returns Document[]
+    return docs
 
 
 # -------------------------------
-# Chunking
+# CHUNKING (UPDATED)
 # -------------------------------
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50):
-    chunks = []
-    start = 0
+def chunk_text(docs):
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200
+    )
 
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start += chunk_size - overlap
-
+    chunks = splitter.split_documents(docs)
     return chunks
 
 
 # -------------------------------
-# MAIN ANALYSIS FUNCTION (FIXED LANGFUSE)
+# MAIN ANALYSIS FUNCTION
 # -------------------------------
 def analyze_contract(file_path: str) -> ContractResponse:
 
@@ -62,20 +59,23 @@ def analyze_contract(file_path: str) -> ContractResponse:
 
     try:
         # ---------------- PDF ----------------
-        text = extract_text_from_pdf(file_path)
-        debug_logs.append(f"Extracted text length: {len(text)}")
+        docs = extract_text_from_pdf(file_path)
+        debug_logs.append(f"Pages loaded: {len(docs)}")
 
         # ---------------- CHUNKING ----------------
-        chunks = chunk_text(text)[:50]
+        chunks = chunk_text(docs)[:50]
         debug_logs.append(f"Total chunks created: {len(chunks)}")
 
         # ---------------- VECTOR STORE ----------------
-        store_chunks(chunks, file_path)
+        store_chunks(
+            [chunk.page_content for chunk in chunks],
+            file_path
+        )
         debug_logs.append("Stored chunks in DB")
 
         issues = [f"{len(chunks)} chunks stored in vector DB"]
 
-        # ---------------- LANGFUSE (OLD WORKING STYLE) ----------------
+        # ---------------- LANGFUSE ----------------
         with langfuse.start_as_current_observation(
             as_type="span",
             name="contract_analysis"
@@ -84,7 +84,7 @@ def analyze_contract(file_path: str) -> ContractResponse:
             span.update(
                 input={
                     "file_path": file_path,
-                    "text_length": len(text),
+                    "pages": len(docs),
                     "chunks": len(chunks)
                 },
                 output={

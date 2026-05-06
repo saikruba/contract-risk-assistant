@@ -6,9 +6,13 @@ import os
 DB_PATH = "./chroma_db"
 COLLECTION_NAME = "contracts"
 
+# -------------------------------
+# SINGLETON CLIENT (IMPORTANT FIX)
+# -------------------------------
+client = chromadb.PersistentClient(path=DB_PATH)
+
 
 def get_collection():
-    client = chromadb.PersistentClient(path=DB_PATH)
     return client.get_or_create_collection(name=COLLECTION_NAME)
 
 
@@ -48,7 +52,7 @@ def query_chunks(query, n_results=5):
         n_results=n_results
     )
 
-    docs = results["documents"][0]
+    docs = results.get("documents", [[]])[0]
 
     unique_docs = []
     for doc in docs:
@@ -60,23 +64,24 @@ def query_chunks(query, n_results=5):
 
 
 # -------------------------------
-# RESET (CRITICAL FIX)
+# SAFE RESET (FIXED VERSION)
 # -------------------------------
 def reset_db():
-    import chromadb
+    global client
 
     try:
-        client = chromadb.PersistentClient(path="./chroma_db")
+        # 1. Recreate clean persistent client
+        client = chromadb.PersistentClient(path=DB_PATH)
 
-        # delete collection safely
+        # 2. Delete collection safely
         try:
-            client.delete_collection(name="contracts")
-            print("Collection deleted")
+            client.delete_collection(name=COLLECTION_NAME)
+            print("🗑️ Collection deleted")
         except Exception as e:
-            print("Collection delete error:", e)
+            print("⚠️ Delete skipped (likely doesn't exist):", str(e))
 
-        # recreate clean collection
-        client.get_or_create_collection(name="contracts")
+        # 3. Recreate fresh collection
+        client.get_or_create_collection(name=COLLECTION_NAME)
 
         print("✅ SAFE RESET SUCCESSFUL")
 
