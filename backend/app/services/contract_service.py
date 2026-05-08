@@ -1,5 +1,6 @@
 from app.schemas.contract_schema import ContractResponse
 from app.services.vector_service import store_chunks
+from app.services.risk_agent import classify_risks
 from app.core.config import settings
 
 import traceback
@@ -7,6 +8,7 @@ from langfuse import get_client
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 
 # -------------------------------
 # Langfuse Setup
@@ -26,7 +28,7 @@ langfuse = get_client()
 # -------------------------------
 def extract_text_from_pdf(file_path: str):
     loader = PyPDFLoader(file_path)
-    docs = loader.load()  # returns Document[]
+    docs = loader.load()
     return docs
 
 
@@ -57,15 +59,28 @@ def analyze_contract(file_path: str) -> ContractResponse:
     issues = []
 
     try:
-        # ---------------- PDF ----------------
+
+        # -------------------------------
+        # PDF LOAD
+        # -------------------------------
         docs = extract_text_from_pdf(file_path)
-        debug_logs.append(f"Pages loaded: {len(docs)}")
 
-        # ---------------- CHUNKING ----------------
+        debug_logs.append(
+            f"Pages loaded: {len(docs)}"
+        )
+
+        # -------------------------------
+        # CHUNKING
+        # -------------------------------
         chunks = chunk_text(docs)[:50]
-        debug_logs.append(f"Total chunks created: {len(chunks)}")
 
-        # ---------------- VECTOR STORE (UPDATED WITH METADATA) ----------------
+        debug_logs.append(
+            f"Total chunks created: {len(chunks)}"
+        )
+
+        # -------------------------------
+        # VECTOR STORE
+        # -------------------------------
         store_chunks(
             [chunk.page_content for chunk in chunks],
             [
@@ -76,11 +91,48 @@ def analyze_contract(file_path: str) -> ContractResponse:
                 for chunk in chunks
             ]
         )
+
         debug_logs.append("Stored chunks in DB")
 
-        issues = [f"{len(chunks)} chunks stored in vector DB"]
+        # -------------------------------
+        # RISK CLASSIFICATION AGENT
+        # -------------------------------
+        full_text = "\n".join(
+            [chunk.page_content for chunk in chunks]
+        )
 
-        # ---------------- LANGFUSE ----------------
+        debug_logs.append(
+            f"Risk analysis input length: {len(full_text)}"
+        )
+
+        risk_analysis = classify_risks(full_text)
+
+        issues = [risk_analysis]
+
+        # -------------------------------
+        # OVERALL RISK DETECTION
+        # -------------------------------
+        risk_analysis_upper = risk_analysis.upper()
+
+        if "OVERALL RISK LEVEL: CRITICAL" in risk_analysis_upper:
+            risk = "critical"
+
+        elif "OVERALL RISK LEVEL: HIGH" in risk_analysis_upper:
+            risk = "high"
+
+        elif "OVERALL RISK LEVEL: MEDIUM" in risk_analysis_upper:
+            risk = "medium"
+
+        else:
+            risk = "low"
+
+        debug_logs.append(
+            f"Detected overall risk level: {risk}"
+        )
+
+        # -------------------------------
+        # LANGFUSE TRACE
+        # -------------------------------
         with langfuse.start_as_current_observation(
             as_type="span",
             name="contract_analysis"
@@ -93,19 +145,22 @@ def analyze_contract(file_path: str) -> ContractResponse:
                     "chunks": len(chunks)
                 },
                 output={
-                    "risk": risk,
-                    "issues": issues
+                    "risk": risk
                 }
             )
 
         try:
             langfuse.flush()
+
         except Exception as e:
-            debug_logs.append(f"Flush failed: {str(e)}")
+            debug_logs.append(
+                f"Flush failed: {str(e)}"
+            )
 
         debug_logs.append("TRACE SENT")
 
     except Exception as e:
+
         error_msg = str(e)
         trace_error = traceback.format_exc()
 
