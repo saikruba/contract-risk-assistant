@@ -304,16 +304,73 @@ if st.session_state.analysis:
 
     with col2:
         st.markdown("### 📄 Upload Contract")
-        
+
         st.info(data["filename"])
-     
+
+    # -------------------------------
+    # EXECUTIVE SUMMARY
+    # -------------------------------
+    if data.get("summary"):
+
+        st.subheader("Executive Summary")
+
+        st.success(
+            data["summary"]
+        )
+
     st.markdown("---")
 
+    # -------------------------------
+    # RISK ANALYSIS
+    # -------------------------------
     st.subheader("Risk Analysis")
 
     for issue in data["issues"]:
         st.markdown(issue)
 
+    # -------------------------------
+    # AGENT QA RESULTS
+    # -------------------------------
+    if data.get("qa_results"):
+
+        st.markdown("---")
+
+        st.subheader("Agent QA Results")
+
+        for qa in data["qa_results"]:
+
+            st.markdown(
+                f"### {qa['question']}"
+            )
+
+            st.info(
+                qa["answer"]
+            )
+
+            for ref in qa.get(
+                "references",
+                []
+            ):
+
+                page = ref.get(
+                    "page",
+                    "unknown"
+                )
+
+                text = ref.get(
+                    "text",
+                    ""
+                )
+
+                with st.expander(
+                    f"Reference - Page {page}"
+                ):
+
+                    st.write(text)
+
+    # -------------------------------
+    # DEBUG LOGS
+    # -------------------------------
     with st.expander("Debug Logs"):
 
         for log in data.get("debug", []):
