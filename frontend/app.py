@@ -168,6 +168,10 @@ if st.session_state.reset_trigger:
 # -------------------------------
 st.title("📄 Contract Risk Assistant")
 
+st.caption(
+    "AI-powered contract review, legal Q&A, and risk analysis"
+)
+
 
 # -------------------------------
 # SEARCH SECTION
@@ -256,9 +260,9 @@ st.markdown("---")
 # -------------------------------
 if st.session_state.answer:
 
-    st.subheader("Answer")
+    st.subheader("AI Answer")
 
-    st.success(
+    st.info(
         st.session_state.answer
     )
 
@@ -299,7 +303,11 @@ if st.session_state.analysis:
         )
 
     with col2:
-        st.write(f"📄 {data['filename']}")
+        st.markdown("### 📄 Upload Contract")
+        
+        st.info(data["filename"])
+     
+    st.markdown("---")
 
     st.subheader("Risk Analysis")
 

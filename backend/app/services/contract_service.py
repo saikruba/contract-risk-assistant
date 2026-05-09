@@ -114,13 +114,20 @@ def analyze_contract(file_path: str) -> ContractResponse:
         # -------------------------------
         risk_analysis_upper = risk_analysis.upper()
 
-        if "OVERALL RISK LEVEL: CRITICAL" in risk_analysis_upper:
+        overall_section = ""
+
+        if "OVERALL RISK LEVEL" in risk_analysis_upper:
+            overall_section = risk_analysis_upper.split(
+                "OVERALL RISK LEVEL"
+            )[-1][:100]
+
+        if "CRITICAL" in overall_section:
             risk = "critical"
 
-        elif "OVERALL RISK LEVEL: HIGH" in risk_analysis_upper:
+        elif "HIGH" in overall_section:
             risk = "high"
 
-        elif "OVERALL RISK LEVEL: MEDIUM" in risk_analysis_upper:
+        elif "MEDIUM" in overall_section:
             risk = "medium"
 
         else:
