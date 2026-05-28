@@ -10,6 +10,94 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+<style>
+
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1450px;
+}
+
+header[data-testid="stHeader"] {
+    background: transparent;
+}
+
+section[data-testid="stSidebar"] {
+    border-right: 1px solid #ececec;
+}
+
+/* Metric Cards */
+div[data-testid="metric-container"] {
+    border: 1px solid #eaeaea;
+    padding: 18px;
+    border-radius: 12px;
+    background-color: rgba(250,250,250,0.6);
+}
+
+/* Expanders */
+div[data-testid="stExpander"] {
+    border-radius: 12px;
+    border: 1px solid #eaeaea;
+    overflow: hidden;
+}
+
+/* Search Container */
+div[data-testid="stTextInputRootElement"] {
+    border-radius: 12px;
+}
+
+div[data-testid="stTextInputRootElement"] input {
+    padding: 0.8rem;
+    font-size: 15px;
+}
+
+div.stButton > button {
+    border-radius: 10px;
+    height: 48px;
+    font-weight: 600;
+}
+
+/* Tabs */
+button[data-baseweb="tab"] {
+    font-size: 15px;
+    font-weight: 600;
+    padding: 10px 18px;
+}
+
+/* Main Title */
+.main-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+/* Subtitle */
+.subtitle {
+    color: #666;
+    margin-bottom: 2rem;
+}
+
+/* AI Answer Box */
+.answer-box {
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #eaeaea;
+    background-color: rgba(248,248,248,0.7);
+}
+
+/* Risk Box */
+.risk-box {
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid #ececec;
+    margin-bottom: 15px;
+    background-color: rgba(250,250,250,0.5);
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 
 # -------------------------------
 # SESSION STATE
@@ -32,7 +120,13 @@ for key, value in defaults.items():
 # -------------------------------
 # SIDEBAR
 # -------------------------------
-st.sidebar.title("Upload Contract")
+st.sidebar.markdown("# 📄 Contract Console")
+
+st.sidebar.markdown(
+    "Upload and analyze legal agreements"
+)
+
+st.sidebar.markdown("---")
 
 uploaded_file = st.sidebar.file_uploader(
     "Choose a PDF file",
@@ -90,7 +184,10 @@ clauses = [
     "Entire Agreement"
 ]
 
-with st.sidebar.expander("📑 Contract Clause Categories"):
+with st.sidebar.expander(
+    "📑 Supported Clause Categories",
+    expanded=False
+):
     for clause in clauses:
         st.write(f"• {clause}")
 
@@ -124,7 +221,7 @@ if uploaded_file and not st.session_state.uploaded:
 
                     st.session_state.uploaded = True
 
-                    st.success("Uploaded & Processed")
+                    st.success("✅ Contract analyzed successfully")
 
                 else:
                     st.error(response.text)
@@ -136,7 +233,10 @@ if uploaded_file and not st.session_state.uploaded:
 # -------------------------------
 # RESET BUTTON
 # -------------------------------
-if st.sidebar.button("🔄 Reset"):
+if st.sidebar.button(
+    "🔄 Reset Workspace",
+    use_container_width=True
+):
     st.session_state.reset_trigger = True
 
 
@@ -158,7 +258,7 @@ if st.session_state.reset_trigger:
 
     st.session_state.uploader_key += 1
 
-    st.success("Reset successful")
+    st.success("Workspace reset successful")
 
     st.session_state.reset_trigger = False
 
@@ -166,41 +266,65 @@ if st.session_state.reset_trigger:
 # -------------------------------
 # MAIN TITLE
 # -------------------------------
-st.title("📄 Contract Risk Assistant")
+st.markdown(
+    '<div class="main-title">📄 Contract Risk Assistant</div>',
+    unsafe_allow_html=True
+)
 
-st.caption(
-    "AI-powered contract review, legal Q&A, and risk analysis"
+st.markdown(
+    '<div class="subtitle">AI-powered contract review, legal Q&A, and risk analysis</div>',
+    unsafe_allow_html=True
 )
 
 
 # -------------------------------
 # SEARCH SECTION
 # -------------------------------
-col1, col2, col3 = st.columns([1, 2, 1])
 
-with col2:
+st.markdown(
+    "### 🔍 Ask Questions About Your Contract"
+)
 
-    st.markdown(
-        "### Ask questions about the contract"
-    )
+st.caption(
+    "Search clauses, obligations, liabilities, payment terms, termination conditions, and more."
+)
 
+search_col1, search_col2 = st.columns([5, 1])
+
+with search_col1:
+
+    
     st.text_input(
         "Search",
-        placeholder="e.g. What is the termination clause?",
+        placeholder="e.g. What are the termination conditions?",
         key="query",
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        on_change=lambda: st.session_state.update(
+            {"enter_pressed": True}
+        )
     )
+
+with search_col2:
+
+#    search_clicked = st.button(
+#        "Search",
+#        use_container_width=True
+#    )
 
     search_clicked = st.button(
         "Search",
-        use_container_width=True
+        use_container_width=True,
+        type="primary"
     )
+
+    if st.session_state.query and not search_clicked:
+        search_clicked = False
 
 
 # -------------------------------
 # QUERY LOGIC
 # -------------------------------
-if search_clicked:
+if search_clicked or st.session_state.get("enter_pressed"):
 
     if not st.session_state.uploaded:
 
@@ -241,6 +365,8 @@ if search_clicked:
                         "answer",
                         ""
                     )
+                    
+                    st.session_state.enter_pressed = False
 
                 else:
                     st.error(response.text)
@@ -256,122 +382,153 @@ st.markdown("---")
 
 
 # -------------------------------
-# ANSWER DISPLAY
-# -------------------------------
-if st.session_state.answer:
-
-    st.subheader("AI Answer")
-
-    st.info(
-        st.session_state.answer
-    )
-
-
-# -------------------------------
-# RETRIEVED CHUNKS
-# -------------------------------
-if st.session_state.results:
-
-    st.subheader("Relevant Sections")
-
-    for r in st.session_state.results:
-
-        page = r.get("page", "unknown")
-
-        text = r.get("text", "")
-
-        with st.expander(f"Page {page}"):
-
-            st.write(text)
-
-
-# -------------------------------
 # CONTRACT ANALYSIS DISPLAY
 # -------------------------------
 if st.session_state.analysis:
 
-    st.markdown("---")
-
     data = st.session_state.analysis
 
-    col1, col2 = st.columns([1, 3])
-
-    with col1:
-        st.metric(
-            "Overall Risk Level",
-            data["risk"].upper()
-        )
-
-    with col2:
-        st.markdown("### 📄 Upload Contract")
-
-        st.info(data["filename"])
-
     # -------------------------------
-    # EXECUTIVE SUMMARY
+    # TABS
     # -------------------------------
-    if data.get("summary"):
+    overview_tab, risks_tab, qa_tab, debug_tab = st.tabs([
+        "📊 Overview",
+        "⚠️ Risks",
+        "🔍 Q&A",
+        "🛠 Debug"
+    ])
 
-        st.subheader("Executive Summary")
+    # =========================================================
+    # OVERVIEW TAB
+    # =========================================================
+    with overview_tab:
 
-        st.success(
-            data["summary"]
-        )
+        col1, col2 = st.columns([1, 3])
 
-    st.markdown("---")
+        with col1:
+            st.metric(
+                "Overall Risk Level",
+                data["risk"].upper()
+            )
 
-    # -------------------------------
-    # RISK ANALYSIS
-    # -------------------------------
-    st.subheader("Risk Analysis")
+        with col2:
+            st.markdown("### 📄 Uploaded Contract")
 
-    for issue in data["issues"]:
-        st.markdown(issue)
+            st.info(data["filename"])
 
-    # -------------------------------
-    # AGENT QA RESULTS
-    # -------------------------------
-    if data.get("qa_results"):
+        # -------------------------------
+        # EXECUTIVE SUMMARY
+        # -------------------------------
+        if data.get("summary"):
 
-        st.markdown("---")
+            st.subheader("Executive Summary")
 
-        st.subheader("Agent QA Results")
+            st.success(
+                data["summary"]
+            )
 
-        for qa in data["qa_results"]:
+    # =========================================================
+    # RISKS TAB
+    # =========================================================
+    with risks_tab:
+
+        st.subheader("Risk Analysis")
+
+        for issue in data["issues"]:
 
             st.markdown(
-                f"### {qa['question']}"
+                f"""
+                <div class="risk-box">
+                {issue}
+                </div>
+                """,
+                unsafe_allow_html=True
             )
 
-            st.info(
-                qa["answer"]
+    # =========================================================
+    # Q&A TAB
+    # =========================================================
+    with qa_tab:
+
+        # -------------------------------
+        # ANSWER DISPLAY
+        # -------------------------------
+        if st.session_state.answer:
+
+            st.subheader("AI Answer")
+
+            st.markdown(
+                f"""
+                <div class="answer-box">
+                {st.session_state.answer}
+                </div>
+                """,
+                unsafe_allow_html=True
             )
 
-            for ref in qa.get(
-                "references",
-                []
-            ):
+        # -------------------------------
+        # RETRIEVED CHUNKS
+        # -------------------------------
+        if st.session_state.results:
 
-                page = ref.get(
-                    "page",
-                    "unknown"
-                )
+            st.subheader("Relevant Sections")
 
-                text = ref.get(
-                    "text",
-                    ""
-                )
+            for r in st.session_state.results:
 
-                with st.expander(
-                    f"Reference - Page {page}"
-                ):
+                page = r.get("page", "unknown")
+
+                text = r.get("text", "")
+
+                with st.expander(f"📄 Page {page}"):
 
                     st.write(text)
 
-    # -------------------------------
-    # DEBUG LOGS
-    # -------------------------------
-    with st.expander("Debug Logs"):
+        # -------------------------------
+        # AGENT QA RESULTS
+        # -------------------------------
+        if data.get("qa_results"):
 
-        for log in data.get("debug", []):
-            st.write(log)
+            st.markdown("---")
+
+            st.subheader("Agent QA Results")
+
+            for qa in data["qa_results"]:
+
+                st.markdown(
+                    f"### {qa['question']}"
+                )
+
+                st.info(
+                    qa["answer"]
+                )
+
+                for ref in qa.get(
+                    "references",
+                    []
+                ):
+
+                    page = ref.get(
+                        "page",
+                        "unknown"
+                    )
+
+                    text = ref.get(
+                        "text",
+                        ""
+                    )
+
+                    with st.expander(
+                        f"Reference - Page {page}"
+                    ):
+
+                        st.write(text)
+
+    # =========================================================
+    # DEBUG TAB
+    # =========================================================
+    with debug_tab:
+
+        with st.expander("Debug Logs"):
+
+            for log in data.get("debug", []):
+                st.write(log)

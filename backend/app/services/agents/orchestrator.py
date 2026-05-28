@@ -1,4 +1,6 @@
-from app.services.risk_agent import classify_risks
+from app.services.agents.risk_agent import (
+    classify_risks
+)
 
 from app.services.agents.summary_agent import (
     generate_executive_summary

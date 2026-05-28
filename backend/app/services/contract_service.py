@@ -1,6 +1,5 @@
 from app.schemas.contract_schema import ContractResponse
 from app.services.vector_service import store_chunks
-from app.services.risk_agent import classify_risks
 from app.services.agents.orchestrator import (
     run_multi_agent_pipeline
 )
