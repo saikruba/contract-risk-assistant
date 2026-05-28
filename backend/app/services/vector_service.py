@@ -2,6 +2,7 @@ import chromadb
 import uuid
 import shutil
 import os
+from app.core.logger import logger
 
 DB_PATH = "./chroma_db"
 COLLECTION_NAME = "contracts"
@@ -30,8 +31,8 @@ def store_chunks(chunks, metadatas):
         metadatas=metadatas
     )
 
-    print("Stored chunks:", len(chunks))
-    print("DB COUNT AFTER STORE:", collection.count())
+    logger.info(f"Stored chunks:", len(chunks))
+    logger.info(f"DB COUNT AFTER STORE:", collection.count())
 
 
 # -------------------------------
@@ -41,10 +42,10 @@ def query_chunks(query, n_results=5):
     collection = get_collection()
 
     count = collection.count()
-    print("DB COUNT BEFORE QUERY:", count)
+    logger.info(f"DB COUNT BEFORE QUERY:", count)
 
     if count == 0:
-        print("⚠️ DB EMPTY")
+        logger.info(f"⚠️ DB EMPTY")
         return []
 
     results = collection.query(
@@ -79,14 +80,14 @@ def reset_db():
         # 2. Delete collection safely
         try:
             client.delete_collection(name=COLLECTION_NAME)
-            print("🗑️ Collection deleted")
+            logger.info(f"🗑️ Collection deleted")
         except Exception as e:
-            print("⚠️ Delete skipped (likely doesn't exist):", str(e))
+            logger.info(f"⚠️ Delete skipped (likely doesn't exist):", str(e))
 
         # 3. Recreate fresh collection
         client.get_or_create_collection(name=COLLECTION_NAME)
 
-        print("✅ SAFE RESET SUCCESSFUL")
+        logger.info(f"✅ SAFE RESET SUCCESSFUL")
 
     except Exception as e:
-        print("❌ RESET ERROR:", str(e))
+        logger.info(f"❌ RESET ERROR:", str(e))

@@ -11,6 +11,8 @@ from langfuse import get_client
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from app.core.database import SessionLocal
+from app.models.review_model import ContractReview
 
 # -------------------------------
 # Langfuse Setup
@@ -244,6 +246,21 @@ def analyze_contract(file_path: str) -> ContractResponse:
             qa_results=[],
             debug=debug_logs
         )
+
+
+    db = SessionLocal()
+
+    review = ContractReview(
+        filename=file_path,
+        risk_level=risk,
+        summary=summary,
+        issues="\n".join(issues)
+    )
+
+    db.add(review)
+    db.commit()
+    db.close()
+
 
     return ContractResponse(
         filename=file_path,
