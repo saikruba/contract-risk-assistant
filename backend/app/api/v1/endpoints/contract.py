@@ -3,8 +3,8 @@ from pydantic import BaseModel
 import os
 
 from app.services.contract_service import analyze_contract
-from app.services.vector_service import query_chunks, reset_db
-from app.services.llm_service import call_llama
+from app.services.vector_service import reset_db
+from app.services.agents.qa_agent import run_qa_agent
 
 router = APIRouter()
 
@@ -37,61 +37,14 @@ class QueryRequest(BaseModel):
 # -------------------------------
 @router.post("/query")
 def query_contract(req: QueryRequest):
-    results = query_chunks(req.query)
 
-    # -------------------------------
-    # Handle empty results
-    # -------------------------------
-    if not results:
-        return {
-            "query": req.query,
-            "answer": "No relevant information found in the contract.",
-            "results": []
-        }
-
-    # -------------------------------
-    # Build context from retrieved chunks
-    # -------------------------------
-    context = "\n\n".join(
-        f"Page {r.get('page', 'unknown')}: {r.get('text', '')}"
-        for r in results
-    )
-
-    # -------------------------------
-    # Prompt (Improved)
-    # -------------------------------
-    prompt = f"""
-You are a legal contract assistant.
-
-Answer the question based ONLY on the contract context below.
-
-Question:
-{req.query}
-
-Context:
-{context}
-
-Instructions:
-- Start with a direct answer (1 sentence summary)
-- Then explain using bullet points
-- Use simple, plain English (avoid legal jargon)
-- Mention page numbers clearly
-- Be concise but complete
-- Do not repeat the same phrases
-- Do not make up information
-"""
-
-    # -------------------------------
-    # LLM Call
-    # -------------------------------
-    answer = call_llama(prompt)
+    qa_result = run_qa_agent(req.query)
 
     return {
         "query": req.query,
-        "answer": answer,
-        "results": results
+        "answer": qa_result["answer"],
+        "results": qa_result["references"]
     }
-
 
 # -------------------------------
 # Reset Endpoint
