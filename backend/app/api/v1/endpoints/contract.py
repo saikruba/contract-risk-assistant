@@ -30,6 +30,7 @@ async def upload_contract(file: UploadFile = File(...)):
 # -------------------------------
 class QueryRequest(BaseModel):
     query: str
+    chat_history: list = []
 
 
 # -------------------------------
@@ -38,7 +39,10 @@ class QueryRequest(BaseModel):
 @router.post("/query")
 def query_contract(req: QueryRequest):
 
-    qa_result = run_qa_agent(req.query)
+    qa_result = run_qa_agent(
+        req.query,
+        req.chat_history
+    )
 
     return {
         "query": req.query,

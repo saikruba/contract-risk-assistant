@@ -38,7 +38,7 @@ def store_chunks(chunks, metadatas):
 # -------------------------------
 # QUERY
 # -------------------------------
-def query_chunks(query, n_results=5):
+def query_chunks(query, n_results=15):
     collection = get_collection()
 
     count = collection.count()

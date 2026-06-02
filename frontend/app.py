@@ -76,14 +76,7 @@ div.stButton > button {
     background: #fafafa;
 }
 
-/* Chat Area */
-.chat-wrapper {
-    border-left: 1px solid #f0f0f0;
-    padding-left: 22px;
-    height: 100%;
-    position: sticky;
-    top: 1rem;
-}
+
 
 .chat-title {
     font-size: 1.15rem;
@@ -97,47 +90,6 @@ div.stButton > button {
     margin-bottom: 1rem;
 }
 
-/* Chat Scroll Area */
-.chat-container {
-    max-height: 70vh;
-    overflow-y: auto;
-    padding-right: 4px;
-    margin-bottom: 1rem;
-}
-
-/* User Message */
-.user-msg {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 14px;
-}
-
-.user-bubble {
-    background: #111827;
-    color: white;
-    padding: 12px 14px;
-    border-radius: 18px 18px 4px 18px;
-    max-width: 85%;
-    font-size: 14px;
-    line-height: 1.5;
-}
-
-/* Assistant Message */
-.assistant-msg {
-    display: flex;
-    justify-content: flex-start;
-    margin-bottom: 18px;
-}
-
-.assistant-bubble {
-    background: #f8f9fb;
-    border: 1px solid #ececec;
-    padding: 14px;
-    border-radius: 18px 18px 18px 4px;
-    max-width: 90%;
-    font-size: 14px;
-    line-height: 1.7;
-}
 
 /* References */
 .reference-block {
@@ -211,7 +163,7 @@ uploaded_file = st.sidebar.file_uploader(
 st.sidebar.markdown("---")
 
 with st.sidebar.expander(
-    "📑 Supported Clause Categories",
+    "📑 Sample Clause Categories",
     expanded=False
 ):
 
@@ -466,10 +418,6 @@ if st.session_state.analysis:
     # =====================================================
     with right_panel:
 
-        st.markdown(
-            '<div class="chat-wrapper">',
-            unsafe_allow_html=True
-        )
 
         st.markdown(
             '<div class="chat-title">🤖 AI Contract Copilot</div>',
@@ -481,167 +429,135 @@ if st.session_state.analysis:
             unsafe_allow_html=True
         )
 
-        query = st.text_input(
-            "Ask",
-            placeholder="Ask about clauses, liabilities, payment terms...",
-            key="chat_input",
-            label_visibility="collapsed"
-        )
-
-        search_clicked = st.button(
-            "Send",
-            use_container_width=True,
-            type="primary"
-        )
-
-        # =================================================
-        # QUERY LOGIC
-        # =================================================
-        if search_clicked:
-
-            if query:
-
-                clean_query = (
-                    query
-                    .replace("what is", "")
-                    .replace("the", "")
-                    .strip()
-                )
-
-                with st.spinner("Analyzing..."):
-
-                    try:
-
-                        response = requests.post(
-                            "http://127.0.0.1:8000/api/v1/query",
-                            json={
-                                "query": clean_query
-                            }
-                        )
-
-                        if response.status_code == 200:
-
-                            result = response.json()
-
-                            answer = result.get(
-                                "answer",
-                                ""
-                            )
-
-                            refs = result.get(
-                                "results",
-                                []
-                            )
-
-                            st.session_state.chat_history.append({
-                                "question": query,
-                                "answer": answer,
-                                "references": refs
-                            })
-
-                            st.rerun()
-
-                        else:
-                            st.error(response.text)
-
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-
+            
         # =================================================
         # CHAT HISTORY
         # =================================================
-        st.markdown(
-            '<div class="chat-container">',
-            unsafe_allow_html=True
-        )
 
-        if st.session_state.chat_history:
+        chat_area = st.container(height=800)
 
-            for chat in reversed(
-                st.session_state.chat_history
-            ):
+        with chat_area:
 
-                # USER MESSAGE
-                st.markdown(
-                    f"""
-                    <div class="user-msg">
-                        <div class="user-bubble">
-                            {chat['question']}
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+            if st.session_state.chat_history:
 
-                # ASSISTANT MESSAGE
-                st.markdown(
-                    f"""
-                    <div class="assistant-msg">
-                        <div class="assistant-bubble">
-                            {chat['answer']}
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                for chat in st.session_state.chat_history:
+
+                    with st.chat_message("user"):
+                        st.write(chat["question"])
+
+                    with st.chat_message("assistant"):
+                        st.write(chat["answer"])
 
                 # REFERENCES
-                seen_refs = set()
+                    seen_refs = set()
 
-                refs_html = '<div class="reference-block">'
+                    refs_html = '<div class="reference-block">'
 
-                for ref in chat.get("references", []):
+                    for ref in chat.get("references", []):
 
-                    page = ref.get("page", "unknown")
+                        page = ref.get("page", "unknown")
 
-                    text = ref.get("text", "")
+                        text = ref.get("text", "")
 
-                    clean_text = " ".join(text.split())
+                        clean_text = " ".join(text.split())
 
-                    if len(clean_text) > 220:
+                        if len(clean_text) > 220:
 
-                        short_text = clean_text[:220]
+                            short_text = clean_text[:220]
 
-                        short_text = short_text.rsplit(" ", 1)[0]
+                            short_text = short_text.rsplit(" ", 1)[0]
 
-                        short_text += "..."
+                            short_text += "..."
 
-                    else:
+                        else:
 
-                        short_text = clean_text
+                            short_text = clean_text
 
-                    unique_key = f"{page}-{short_text}"
+                        unique_key = f"{page}-{short_text}"
 
-                    if unique_key in seen_refs:
-                        continue
+                        if unique_key in seen_refs:
+                            continue
 
-                    seen_refs.add(unique_key)
+                        seen_refs.add(unique_key)
 
-                    refs_html += (
-                    f'<div class="reference-item">'
-                    f'📄 <b>Page {page}</b> — {short_text}'
-                    f'</div>'
+                        refs_html += (
+                        f'<div class="reference-item">'
+                        f'📄 <b>Page {page}</b> — {short_text}'
+                        f'</div>'
+                        )
+
+                    refs_html += "</div>"
+
+                    st.markdown(
+                        refs_html,
+                        unsafe_allow_html=True
                     )
 
-                refs_html += "</div>"
+            else:
 
-                st.markdown(
-                    refs_html,
-                    unsafe_allow_html=True
+                st.info(
+                    "Start asking questions about your agreement."
                 )
+            
 
-        else:
+# =================================================
+# QUERY LOGIC
+# =================================================
+            
+        query = st.chat_input(
+        "Ask about clauses, liabilities, payment terms..."
+        )
+        
+        if query:
 
-            st.info(
-                "Start asking questions about your agreement."
+            clean_query = (
+                query
+                .replace("what is", "")
+                .replace("the", "")
+                .strip()
             )
 
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True
-        )
+            with st.spinner("Analyzing..."):
 
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True
-        )
+                try:
+
+                    response = requests.post(
+                        "http://127.0.0.1:8000/api/v1/query",
+                        json={
+                            "query": clean_query,
+                            "chat_history": st.session_state.chat_history[-5:]
+                        }
+                    )
+
+                    if response.status_code == 200:
+
+                        result = response.json()
+
+                        answer = result.get(
+                            "answer",
+                            ""
+                        )
+
+                        refs = result.get(
+                            "results",
+                            []
+                        )
+
+                        st.session_state.chat_history.append({
+                            "question": query,
+                            "answer": answer,
+                            "references": refs
+                        })
+
+                        st.rerun()
+
+                    else:
+                        st.error(response.text)
+
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            
+            
+            
+
+
