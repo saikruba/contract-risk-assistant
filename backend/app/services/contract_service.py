@@ -207,11 +207,16 @@ def analyze_contract(file_path: str) -> ContractResponse:
                 input={
                     "file_path": file_path,
                     "pages": len(docs),
-                    "chunks": len(chunks)
-                },
+                    "chunks": len(chunks),
+                    "pipeline": "multi_agent_contract_analysis"
+                }
+            )
+            
+            span.update(
                 output={
                     "risk": risk,
                     "summary_generated": bool(summary),
+                    "summary_length": len(summary) if summary else 0,
                     "qa_results_count": len(qa_results)
                 }
             )

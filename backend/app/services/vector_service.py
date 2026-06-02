@@ -31,8 +31,8 @@ def store_chunks(chunks, metadatas):
         metadatas=metadatas
     )
 
-    logger.info(f"Stored chunks:", len(chunks))
-    logger.info(f"DB COUNT AFTER STORE:", collection.count())
+    logger.info("Stored chunks: %s", len(chunks))
+    logger.info("DB COUNT AFTER STORE: %s", collection.count())
 
 
 # -------------------------------
@@ -42,10 +42,10 @@ def query_chunks(query, n_results=5):
     collection = get_collection()
 
     count = collection.count()
-    logger.info(f"DB COUNT BEFORE QUERY:", count)
+    logger.info("DB COUNT BEFORE QUERY: %s", count)
 
     if count == 0:
-        logger.info(f"⚠️ DB EMPTY")
+        logger.info("⚠️ DB EMPTY %s")
         return []
 
     results = collection.query(
@@ -80,14 +80,14 @@ def reset_db():
         # 2. Delete collection safely
         try:
             client.delete_collection(name=COLLECTION_NAME)
-            logger.info(f"🗑️ Collection deleted")
+            logger.info("🗑️ Collection deleted %s")
         except Exception as e:
-            logger.info(f"⚠️ Delete skipped (likely doesn't exist):", str(e))
+            logger.info("⚠️ Delete skipped (likely doesn't exist): %s", str(e))
 
         # 3. Recreate fresh collection
         client.get_or_create_collection(name=COLLECTION_NAME)
 
-        logger.info(f"✅ SAFE RESET SUCCESSFUL")
+        logger.info("✅ SAFE RESET SUCCESSFUL %s")
 
     except Exception as e:
-        logger.info(f"❌ RESET ERROR:", str(e))
+        logger.info("❌ RESET ERROR: %s", str(e))
