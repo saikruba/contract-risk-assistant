@@ -113,7 +113,7 @@ INSTRUCTIONS
 
 """
 
-    answer = call_llama(prompt, max_tokens=500)
+    answer = call_llama(prompt)
 
     return {
         "question": query,
