@@ -200,7 +200,7 @@ def analyze_contract(file_path: str) -> ContractResponse:
         # -------------------------------
         with langfuse.start_as_current_observation(
             as_type="span",
-            name="contract_analysis"
+            name="Contract Review Pipeline"
         ) as span:
 
             span.update(

@@ -1,6 +1,9 @@
 from app.services.vector_service import query_chunks
 from app.services.llm_service import call_llama
 
+from langfuse import get_client
+
+langfuse = get_client()
 
 def simple_rerank(query: str, results: list):
     query_terms = set(query.lower().split())
@@ -113,7 +116,11 @@ INSTRUCTIONS
 
 """
 
-    answer = call_llama(prompt)
+    with langfuse.start_as_current_observation(
+        as_type="generation",
+        name="QA Generation"
+    ):
+        answer = call_llama(prompt)
 
     return {
         "question": query,

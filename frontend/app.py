@@ -19,7 +19,7 @@ st.markdown("""
 .block-container {
     padding-top: 1rem;
     padding-bottom: 1rem;
-    max-width: 1500px;
+    max-width: 1800px;
 }
 
 /* Header */
@@ -118,6 +118,13 @@ div.stButton > button {
     font-size: 1.1rem;
     line-height: 1.7;
 }
+
+section[data-testid="stSidebar"] {
+    min-width: 240px !important;
+    max-width: 240px !important;
+}
+
+
 
 </style>
 """, unsafe_allow_html=True)
@@ -351,7 +358,7 @@ if st.session_state.analysis:
 
     data = st.session_state.analysis
 
-    left_panel, right_panel = st.columns([2.2, 1])
+    left_panel, right_panel = st.columns([2.2,1.0])
 
     # =====================================================
     # LEFT PANEL

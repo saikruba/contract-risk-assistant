@@ -1,5 +1,8 @@
 from app.services.llm_service import call_llama
 
+from langfuse import get_client
+
+langfuse = get_client()
 
 def generate_executive_summary(contract_text: str):
 
@@ -22,7 +25,10 @@ Keep it concise and readable.
 Contract:
 {contract_text[:10000]}
 """
-
-    summary = call_llama(prompt)
+    with langfuse.start_as_current_observation(
+        as_type="generation",
+        name="Executive Summary"
+    ):
+        summary = call_llama(prompt)
 
     return summary
