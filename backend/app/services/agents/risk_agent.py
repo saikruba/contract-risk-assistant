@@ -26,6 +26,7 @@ Analyze the contract for the following risk categories:
 13. Assignment & Subcontracting Risk
 14. Force Majeure Risk
 15. Amendment / Change Control Risk
+16. Dispute Resolution Risk
 
 Instructions:
 
@@ -80,6 +81,9 @@ Contract:
 {contract_text[:12000]}
 """
 
-    response = call_llama(prompt)
+    response = call_llama(
+        prompt,
+        max_tokens= 1200
+    )
 
     return response

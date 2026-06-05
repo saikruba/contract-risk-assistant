@@ -23,6 +23,9 @@ Contract:
 {contract_text[:10000]}
 """
 
-    response = call_llama(prompt)
+    summary = call_llama(
+        prompt,
+        max_tokens= 800
+    )
 
-    return response
+    return summary

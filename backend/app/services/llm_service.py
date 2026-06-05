@@ -3,19 +3,18 @@ from app.core.config import settings
 
 client = Groq(api_key=settings.GROQ_API_KEY)
 
-def call_llama(prompt: str):
+def call_llama(
+    prompt: str,
+    max_tokens: int = 1000
+):
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         temperature=0.2,
-        max_tokens=1200,
+        max_tokens=max_tokens,
         messages=[
             {
                 "role": "system",
-                "content": (
-                    "You are an expert legal contract analyst. "
-                    "Answer strictly from the provided contract context. "
-                    "If information is missing, say so."
-                )
+                "content": "You are a legal contract assistant."
             },
             {
                 "role": "user",
