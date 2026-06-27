@@ -64,7 +64,6 @@ def analyze_contract(file_path: str) -> ContractResponse:
         f"File Path: {file_path}"
     ]
 
-    risk = "low"
 
     issues = []
 
@@ -86,7 +85,7 @@ def analyze_contract(file_path: str) -> ContractResponse:
         # -------------------------------
         # CHUNKING
         # -------------------------------
-        chunks = chunk_text(docs)[:50]
+        chunks = chunk_text(docs)[:20]
 
         debug_logs.append(
             f"Total chunks created: {len(chunks)}"
@@ -151,6 +150,11 @@ def analyze_contract(file_path: str) -> ContractResponse:
             "qa_results",
             []
         )
+        
+        segment_analysis = pipeline_output.get(
+            "segment_analysis",
+            []
+        )
 
         issues = [risk_analysis]
 
@@ -162,38 +166,6 @@ def analyze_contract(file_path: str) -> ContractResponse:
             f"QA agent generated {len(qa_results)} results"
         )
 
-        # -------------------------------
-        # OVERALL RISK DETECTION
-        # -------------------------------
-        risk_analysis_upper = risk_analysis.upper()
-
-        overall_section = ""
-
-        if "OVERALL RISK LEVEL" in risk_analysis_upper:
-
-            overall_section = risk_analysis_upper.split(
-                "OVERALL RISK LEVEL"
-            )[-1][:100]
-
-        if "CRITICAL" in overall_section:
-
-            risk = "critical"
-
-        elif "HIGH" in overall_section:
-
-            risk = "high"
-
-        elif "MEDIUM" in overall_section:
-
-            risk = "medium"
-
-        else:
-
-            risk = "low"
-
-        debug_logs.append(
-            f"Detected overall risk level: {risk}"
-        )
 
         # -------------------------------
         # LANGFUSE TRACE
@@ -214,7 +186,6 @@ def analyze_contract(file_path: str) -> ContractResponse:
             
             span.update(
                 output={
-                    "risk": risk,
                     "summary_generated": bool(summary),
                     "summary_length": len(summary) if summary else 0,
                     "qa_results_count": len(qa_results)
@@ -245,10 +216,10 @@ def analyze_contract(file_path: str) -> ContractResponse:
 
         return ContractResponse(
             filename=file_path,
-            risk="error",
-            issues=[error_msg],
-            summary=None,
+            issues=issues,
+            summary=summary,
             qa_results=[],
+            segment_analysis=[],
             debug=debug_logs
         )
 
@@ -257,7 +228,6 @@ def analyze_contract(file_path: str) -> ContractResponse:
 
     review = ContractReview(
         filename=file_path,
-        risk_level=risk,
         summary=summary,
         issues="\n".join(issues)
     )
@@ -269,9 +239,9 @@ def analyze_contract(file_path: str) -> ContractResponse:
 
     return ContractResponse(
         filename=file_path,
-        risk=risk,
         issues=issues,
         summary=summary,
         qa_results=qa_results,
+        segment_analysis=segment_analysis,
         debug=debug_logs
     )

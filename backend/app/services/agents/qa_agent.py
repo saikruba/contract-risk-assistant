@@ -35,11 +35,7 @@ def run_qa_agent(
 
     
     sub_queries = [
-        search_query,
-        "termination clause",
-        "liability limitation",
-        "indemnification",
-        "payment terms"
+        search_query
     ]
     
     results = []

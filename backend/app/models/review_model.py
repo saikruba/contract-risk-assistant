@@ -10,8 +10,6 @@ class ContractReview(Base):
 
     filename = Column(String)
 
-    risk_level = Column(String)
-
     summary = Column(Text)
 
     issues = Column(Text)

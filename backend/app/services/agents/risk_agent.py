@@ -1,306 +1,268 @@
-from app.services.llm_service import call_llama
+import re
+import json
 
+from app.services.llm_service import call_llama
 from langfuse import get_client
 
 langfuse = get_client()
 
-def classify_risks(contract_text: str):
+SEVERITY_REFERENCE = {
+    "HIGH": 3,
+    "MEDIUM": 2,
+    "LOW": 1
+}
+
+
+def split_contract_into_segments(contract_text):
+
+    pattern = r"(?m)^\d+\."
+
+    matches = list(
+        re.finditer(pattern, contract_text)
+    )
+
+    if not matches:
+        return [contract_text]
+
+    segments = []
+
+    start = 0
+
+    for match in matches:
+
+        end = match.start()
+
+        if end > start:
+            segments.append(
+                contract_text[start:end].strip()
+            )
+
+        start = end
+
+    segments.append(
+        contract_text[start:].strip()
+    )
+
+    return [
+        s for s in segments
+        if s.strip()
+    ]
+
+
+def analyze_segment(segment):
 
     prompt = f"""
-You are a senior commercial contracts attorney specializing in
-contract risk assessment and legal review.
+You are a senior contracts attorney.
 
-====================================================
-TASK
-====================================================
+Analyze ONLY this contract segment.
 
-Perform a COMPLETE CONTRACT RISK SWEEP.
+SEGMENT
 
-Review the contract against a predefined legal risk checklist.
+{segment}
 
-Analyze ONLY clauses that actually exist in the contract.
+Instructions:
 
-Do NOT hallucinate.
-Do NOT invent clauses.
-Do NOT assume risks not supported by contract language.
+- Extract all legal clauses.
+- Multiple clauses may exist.
+- Do not invent clauses.
+- Assign HIGH, MEDIUM or LOW severity.
+- Return one JSON object per clause.
+- Return [] if none exist.
 
-The same contract should produce substantially the same
-risk assessment on repeated reviews.
+Return STRICT JSON:
 
-Use the scoring framework consistently.
+[
+{{
+"clause_name":"...",
+"clause_excerpt":"...",
+"severity":"HIGH",
+"reason":"..."
+}}
+]
 
-====================================================
-RISK ASSESSMENT FRAMEWORK
-====================================================
+Return [] if nothing relevant is found.
+"""
 
-For each category determine:
+    response = call_llama(prompt)
 
-1. Whether the clause exists
-2. What the clause says in plain English
-3. Risk rating:
-   LOW
-   MEDIUM
-   HIGH
-4. Why the clause creates legal or business risk
+    try:
 
-====================================================
-RISK CATEGORIES
-====================================================
+        response = response.strip()
 
-1. Indemnification Obligations
+        if response.startswith("```json"):
+            response = response.replace(
+                "```json",
+                ""
+            )
 
-Check for:
-- One-sided indemnities
-- Broad indemnification language
-- Third-party claims
-- Defense obligations
+        if response.endswith("```"):
+            response = response[:-3]
 
-----------------------------------------------------
+        response = response.strip()
 
-2. Limitation of Liability
+        return json.loads(response)
 
-Check for:
-- Liability caps
-- No liability cap
-- Unlimited liability
-- Excluded damages
+    except Exception:
 
-----------------------------------------------------
+        return []
 
-3. Termination Rights
 
-Check for:
-- Convenience termination
-- Termination for cause
-- Immediate termination rights
-- One-sided termination rights
+def classify_risks(contract_text: str):
 
-----------------------------------------------------
+    # --------------------------
+    # Split contract
+    # --------------------------
+    segments = split_contract_into_segments(
+        contract_text
+    )
 
-4. Notice Periods
+    # limit to first 15 segments
+    segments = segments[:15]
 
-Check for:
-- Termination notice periods
-- Renewal notice periods
-- Short notice requirements
+    SEGMENT_WISE_ANALYSIS = []
 
-----------------------------------------------------
+    # --------------------------
+    # Segment-wise analysis
+    # --------------------------
+    for segment in segments:
 
-5. Auto-Renewal
+        result = analyze_segment(segment)
 
-Check for:
-- Automatic renewal
-- Evergreen clauses
-- Renewal opt-out obligations
+        SEGMENT_WISE_ANALYSIS.extend(result)
 
-----------------------------------------------------
+    # --------------------------
+    # No clauses found
+    # --------------------------
+    if not SEGMENT_WISE_ANALYSIS:
 
-6. Intellectual Property Ownership
-
-Check for:
-- Ownership transfer
-- Work-product ownership
-- Licensing provisions
-- IP ambiguity
-
-----------------------------------------------------
-
-7. Governing Law & Jurisdiction
-
-Check for:
-- Governing law
-- Court selection
-- Venue requirements
-- Foreign jurisdiction risk
-
-----------------------------------------------------
-
-8. Confidentiality
-
-Check for:
-- Confidentiality obligations
-- Duration of confidentiality
-- Perpetual confidentiality
-- Data protection obligations
-
-----------------------------------------------------
-
-9. Payment Terms & Penalties
-
-Check for:
-- Payment deadlines
-- Late fees
-- Interest penalties
-- Ambiguous payment obligations
-
-----------------------------------------------------
-
-10. Dispute Resolution
-
-Check for:
-- Arbitration
-- Litigation
-- Mediation
-- Class-action waiver
-
-====================================================
-RISK SCORING GUIDELINES
-====================================================
-
-Assign HIGH risk when ANY of the following are present:
-
-- Unlimited liability
-- No liability cap
-- Broad indemnification obligations
-- Perpetual confidentiality obligations
-- Automatic renewal without notice
-- Exclusive foreign jurisdiction
-- IP ownership transferred away from customer
-- One-sided termination rights
-- Mandatory arbitration significantly limiting remedies
-- Vague or undefined payment obligations
-
-----------------------------------------------------
-
-Assign MEDIUM risk when:
-
-- Clause exists but is imbalanced
-- Liability cap is unusually high
-- Notice periods are short
-- Language is ambiguous
-- Protections are incomplete
-
-----------------------------------------------------
-
-Assign LOW risk when:
-
-- Clause is balanced
-- Risk exposure is limited
-- Market-standard protections exist
-
-====================================================
-MANDATORY RULES
-====================================================
-
-Every category MUST appear in the final report.
-
-If a category is not found:
-
-Found = No
-
-Risk Rating = LOW
-
-Clause Evidence = No relevant clause detected
-
-Plain English Summary = No relevant clause detected
-
-Business Impact = Minimal risk due to absence of clause
-
-====================================================
-OUTPUT FORMAT
-====================================================
-
+        return {
+            "risk_report": """
 STRUCTURED RISK REGISTER
 
-| Risk Category | Found | Risk Rating | Clause Evidence | Summary | Business Impact |
+No significant legal risks detected.
 
-Provide exactly one row for each category.
+OVERALL RISK SCORE: 0
 
-====================================================
-AFTER THE TABLE
-====================================================
+OVERALL RISK LEVEL: LOW
+""",
+            "summary": """
+- Contract purpose could not be determined.
+- No material clauses identified.
+- Overall risk posture is low.
+"""
+        }
+
+    # --------------------------
+    # Score calculation
+    # --------------------------
+    total_risk_score = 0
+
+    high_count = 0
+    medium_count = 0
+    low_count = 0
+
+    for item in SEGMENT_WISE_ANALYSIS:
+
+        severity = item.get(
+            "severity",
+            "LOW"
+        ).upper()
+
+        score = SEVERITY_REFERENCE.get(
+            severity,
+            1
+        )
+
+        item["score"] = score
+
+        total_risk_score += score
+
+        if severity == "HIGH":
+            high_count += 1
+
+        elif severity == "MEDIUM":
+            medium_count += 1
+
+        else:
+            low_count += 1
+
+    # --------------------------
+    # Normalize score
+    # --------------------------
+    num_clauses = len(
+        SEGMENT_WISE_ANALYSIS
+    )
+
+    avg_score = total_risk_score / max(
+        num_clauses,
+        1
+    )
+
+    # --------------------------
+    # Overall risk level
+    # --------------------------
+    if avg_score < 1.5:
+
+        overall_level = "LOW"
+
+    elif avg_score < 2.5:
+
+        overall_level = "MEDIUM"
+
+    else:
+
+        overall_level = "HIGH"
+        
+        
+
+    # ==================================================
+    # BUILD RISK REPORT IN PYTHON
+    # ==================================================
+    risk_report = """
+STRUCTURED RISK REGISTER
+
+"""
+
+    for item in SEGMENT_WISE_ANALYSIS:
+
+        risk_report += f"""
+----------------------------------------
+Risk Category : {item.get("clause_name","")}
+
+Risk Rating   : {item.get("severity","")}
+
+Score         : {item.get("score",1)}
+
+Evidence      : {item.get("clause_excerpt","")}
+
+Reason        : {item.get("reason","")}
+
+"""
+
+    risk_report += f"""
+
+========================================
 
 RISK DISTRIBUTION
 
-High Risk Categories: X
+High Risk Categories   : {high_count}
 
-Medium Risk Categories: X
+Medium Risk Categories : {medium_count}
 
-Low Risk Categories: X
+Low Risk Categories    : {low_count}
 
-----------------------------------------------------
+========================================
 
-TOP RISKS
+OVERALL RISK SCORE : {avg_score:.2f}
 
-List the 3 most significant risks.
-
-----------------------------------------------------
-
-MISSING PROTECTIONS
-
-List important protections that appear absent.
-
-----------------------------------------------------
-
-NEGOTIATION PRIORITIES
-
-List the clauses that should be negotiated first.
-
-----------------------------------------------------
-
-EXECUTIVE SUMMARY
-
-Provide:
-
-- Contract Purpose
-- Overall Risk Posture
-- Key Risk Drivers
-- Most Important Negotiation Points
-
-Maximum 5 bullet points.
-
-====================================================
-OVERALL RISK SCORING METHODOLOGY
-====================================================
-
-Assign points:
-
-LOW = 1
-MEDIUM = 2
-HIGH = 3
-
-Calculate the total score using all 10 categories.
-
-Score Range:
-
-1-12 = LOW
-
-13-20 = MEDIUM
-
-21-30 = HIGH
-
-You MUST calculate the score using the category ratings.
-
-Do NOT estimate.
-
-====================================================
-FINAL OUTPUT
-====================================================
-
-OVERALL RISK SCORE: X/30
-
-OVERALL RISK LEVEL: LOW
-
-OR
-
-OVERALL RISK LEVEL: MEDIUM
-
-OR
-
-OVERALL RISK LEVEL: HIGH
-
-====================================================
-CONTRACT
-====================================================
-
-{contract_text[:15000]}
+OVERALL RISK LEVEL : {overall_level}
 """
 
-    with langfuse.start_as_current_observation(
-        as_type="span",
-        name="Risk Assessment"
-    ):
 
-        response = call_llama(prompt)
 
-    return response
+    return {
+        "risk_report": risk_report,
+        "segment_analysis": SEGMENT_WISE_ANALYSIS,
+        "avg_score": avg_score,
+        "overall_level": overall_level
+    }

@@ -1,30 +1,51 @@
 from app.services.llm_service import call_llama
-
 from langfuse import get_client
+import json
 
 langfuse = get_client()
 
-def generate_executive_summary(contract_text: str):
+
+def generate_executive_summary(
+    segment_analysis,
+    avg_score,
+    overall_level
+) -> str:
 
     prompt = f"""
-You are an executive legal summarization assistant.
+You are a senior legal executive assistant.
 
-Create a concise executive summary of this contract.
+Segment-wise contract analysis has already been completed.
+
+Use ONLY the supplied clause findings.
+
+Do not invent clauses.
+
+CLAUSE FINDINGS
+
+{json.dumps(segment_analysis[:50], indent=2)}
+
+OVERALL RISK SCORE
+
+{avg_score:.2f}
+
+OVERALL RISK LEVEL
+
+{overall_level}
+
+Provide a concise executive summary.
 
 Include:
-- Contract purpose
-- Key business obligations
-- Important payment terms
-- Termination conditions
-- Major legal risks
-- Key negotiation concerns
 
-Use simple business English.
-Keep it concise and readable.
+- Contract Purpose
+- Overall Risk Posture
+- Key Risk Drivers
+- Most Important Negotiation Points
+- Missing Protections (if any)
 
-Contract:
-{contract_text[:10000]}
+
+Use clear business English.
 """
+
     with langfuse.start_as_current_observation(
         as_type="generation",
         name="Executive Summary"

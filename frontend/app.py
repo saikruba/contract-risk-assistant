@@ -1,38 +1,22 @@
 import streamlit as st
 import requests
-
+import pandas as pd
 
 # =========================================================
-# PAGE CONFIG
+# PAGE CONFIG (MUST BE FIRST STREAMLIT CALL)
 # =========================================================
 st.set_page_config(
     page_title="Contract Risk Assistant",
     layout="wide"
 )
 
-# =========================================================
-# CUSTOM CSS
-# =========================================================
+
 st.markdown("""
 <style>
 
-.block-container {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-    max-width: 1800px;
-}
-
-/* Header */
-header[data-testid="stHeader"] {
-    background: transparent;
-}
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    border-right: 1px solid #ececec;
-}
-
-/* Main Title */
+/* ==========================
+   Main Title
+========================== */
 .main-title {
     font-size: 2.3rem;
     font-weight: 700;
@@ -42,9 +26,12 @@ section[data-testid="stSidebar"] {
 .subtitle {
     color: #666;
     margin-bottom: 1.4rem;
+    font-size: 1rem;
 }
 
-/* Metric Cards */
+/* ==========================
+   Metric Cards
+========================== */
 div[data-testid="metric-container"] {
     border: 1px solid #ececec;
     border-radius: 14px;
@@ -52,22 +39,28 @@ div[data-testid="metric-container"] {
     background: #fafafa;
 }
 
-/* Tabs */
+/* ==========================
+   Tabs
+========================== */
 button[data-baseweb="tab"] {
-    font-size: 28px;
+    font-size: 16px;
     font-weight: 600;
-    padding: 14px 22px;
+    padding: 12px 20px;
     margin-right: 6px;
 }
 
-/* Buttons */
+/* ==========================
+   Buttons
+========================== */
 div.stButton > button {
     border-radius: 10px;
     height: 44px;
     font-weight: 600;
 }
 
-/* Risk Box */
+/* ==========================
+   Risk Cards
+========================== */
 .risk-box {
     padding: 18px;
     border-radius: 14px;
@@ -76,8 +69,9 @@ div.stButton > button {
     background: #fafafa;
 }
 
-
-
+/* ==========================
+   Chat
+========================== */
 .chat-title {
     font-size: 1.15rem;
     font-weight: 700;
@@ -90,8 +84,9 @@ div.stButton > button {
     margin-bottom: 1rem;
 }
 
-
-/* References */
+/* ==========================
+   References
+========================== */
 .reference-block {
     margin-top: 10px;
     padding-top: 10px;
@@ -105,29 +100,16 @@ div.stButton > button {
     line-height: 1.6;
 }
 
-/* Hero Section */
-.hero-title {
-    font-size: 3rem;
-    font-weight: 700;
-    line-height: 1.1;
-    margin-bottom: 1rem;
+/* ==========================
+   Chat Messages
+========================== */
+div[data-testid="stChatMessage"] {
+    padding-bottom: 0.4rem;
 }
-
-.hero-subtitle {
-    color: #666;
-    font-size: 1.1rem;
-    line-height: 1.7;
-}
-
-section[data-testid="stSidebar"] {
-    min-width: 240px !important;
-    max-width: 240px !important;
-}
-
-
 
 </style>
 """, unsafe_allow_html=True)
+
 
 # =========================================================
 # SESSION STATE
@@ -151,11 +133,7 @@ for key, value in defaults.items():
 # SIDEBAR
 # =========================================================
 st.sidebar.markdown("# Contract Console")
-
-st.sidebar.markdown(
-    "Upload and analyze legal agreements"
-)
-
+st.sidebar.markdown("Upload and analyze legal agreements")
 st.sidebar.markdown("---")
 
 uploaded_file = st.sidebar.file_uploader(
@@ -165,200 +143,71 @@ uploaded_file = st.sidebar.file_uploader(
 )
 
 # =========================================================
-# CLAUSE CATEGORIES
-# =========================================================
-st.sidebar.markdown("---")
-
-with st.sidebar.expander(
-    "📑 Sample Clause Categories",
-    expanded=False
-):
-
-    clauses = [
-        "Termination",
-        "Indemnification",
-        "Liability",
-        "Payment Terms",
-        "Confidentiality",
-        "IP Ownership",
-        "Auto Renewal",
-        "Warranty",
-        "Force Majeure",
-        "Assignment",
-        "Insurance",
-        "Jurisdiction"
-    ]
-
-    for clause in clauses:
-        st.write(f"• {clause}")
-
-# =========================================================
 # UPLOAD HANDLING
 # =========================================================
 if uploaded_file and not st.session_state.uploaded:
 
     with st.sidebar:
-
         with st.spinner("Analyzing contract..."):
 
-            try:
+            files = {
+                "file": (uploaded_file.name, uploaded_file.getvalue())
+            }
 
-                files = {
-                    "file": (
-                        uploaded_file.name,
-                        uploaded_file.getvalue()
-                    )
-                }
+            response = requests.post(
+                "http://127.0.0.1:8000/api/v1/upload-contract",
+                files=files
+            )
 
-                response = requests.post(
-                    "http://127.0.0.1:8000/api/v1/upload-contract",
-                    files=files
-                )
-
-                if response.status_code == 200:
-
-                    st.session_state.analysis = response.json()
-
-                    st.session_state.uploaded = True
-
-                    st.success(
-                        "✅ Contract analyzed successfully"
-                    )
-
-                else:
-                    st.error(response.text)
-
-            except Exception as e:
-                st.error(f"Error: {e}")
+            if response.status_code == 200:
+                st.session_state.analysis = response.json()
+                st.session_state.uploaded = True
+                st.success("✅ Contract analyzed successfully")
+            else:
+                st.error(response.text)
 
 # =========================================================
 # RESET
 # =========================================================
-if st.sidebar.button(
-    "🔄 Reset Workspace",
-    use_container_width=True
-):
-    st.session_state.reset_trigger = True
-
-if st.session_state.reset_trigger:
+if st.sidebar.button("🔄 Reset Workspace", width="stretch"):
 
     try:
-
-        requests.post(
-            "http://127.0.0.1:8000/api/v1/reset"
-        )
-
+        requests.post("http://127.0.0.1:8000/api/v1/reset")
     except Exception as e:
         st.error(f"Backend reset failed: {e}")
 
     st.session_state.analysis = None
     st.session_state.uploaded = False
-    st.session_state.chat_input = ""
-    st.session_state.results = []
-    st.session_state.answer = ""
     st.session_state.chat_history = []
-
     st.session_state.uploader_key += 1
-
-    st.session_state.reset_trigger = False
 
     st.rerun()
 
 # =========================================================
-# MAIN TITLE
+# TITLE
 # =========================================================
 st.markdown(
-    '<div class="main-title">📄 Contract Risk Assistant</div>',
+    '<div style="font-size:2.3rem;font-weight:700;">📄 Contract Risk Assistant</div>',
     unsafe_allow_html=True
 )
 
 st.markdown(
-    '<div class="subtitle">AI-powered contract review, legal Q&A, and risk analysis</div>',
+    '<div style="color:#666;">AI-powered contract review system</div>',
     unsafe_allow_html=True
 )
 
 # =========================================================
-# LANDING PAGE
+# MAIN APP
 # =========================================================
 if not st.session_state.analysis:
 
-    hero_left, hero_right = st.columns([1.2, 1])
+    st.info("Upload a contract to begin analysis.")
 
-    with hero_left:
-
-        st.markdown(
-            """
-            <div style="padding-top:80px; padding-right:40px;">
-
-            <div class="hero-title">
-            AI Contract Review<br>for Legal Teams
-            </div>
-
-            <div class="hero-subtitle">
-            Upload contracts, detect risks, analyze clauses,
-            and ask legal questions with an AI copilot.
-            </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with hero_right:
-
-        st.markdown(
-            """
-            <div style="
-                border:1px solid #ececec;
-                border-radius:20px;
-                padding:30px;
-                margin-top:40px;
-                background:#fafafa;
-            ">
-
-            <div style="
-                font-size:1.1rem;
-                font-weight:700;
-                margin-bottom:20px;
-            ">
-            🤖 AI Contract Copilot
-            </div>
-
-            <div style="
-                background:white;
-                border:1px solid #ececec;
-                border-radius:14px;
-                padding:16px;
-                margin-bottom:14px;
-            ">
-            What are the termination conditions?
-            </div>
-
-            <div style="
-                background:#f8f9fb;
-                border:1px solid #ececec;
-                border-radius:14px;
-                padding:16px;
-                color:#444;
-                line-height:1.7;
-            ">
-            The agreement allows termination with 30 days notice
-            and immediate termination for material breach.
-            </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-# =========================================================
-# MAIN APPLICATION
-# =========================================================
-if st.session_state.analysis:
+else:
 
     data = st.session_state.analysis
 
-    left_panel, right_panel = st.columns([2.2,1.0])
+    left_panel, right_panel = st.columns([2.2, 1])
 
     # =====================================================
     # LEFT PANEL
@@ -371,60 +220,80 @@ if st.session_state.analysis:
             "🛠 Debug"
         ])
 
-        # =================================================
+        # -----------------------------
         # OVERVIEW
-        # =================================================
+        # -----------------------------
         with overview_tab:
 
-            st.metric(
-                "Risk Level",
-                data["risk"].upper()
-            )
+        #    st.metric("Document", uploaded_file.name)
 
             if data.get("summary"):
+                st.subheader("Executive Summary")
+                st.markdown(data["summary"])
 
-                st.subheader(
-                    "Executive Summary"
-                )
-
-                st.success(
-                    data["summary"]
-                )
-
-        # =================================================
-        # RISKS
-        # =================================================
+        # -----------------------------
+        # RISKS (FIXED TABLE)
+        # -----------------------------
         with risks_tab:
 
             st.subheader("Risk Analysis")
 
-            for issue in data["issues"]:
+            df = pd.DataFrame(data.get("segment_analysis", []))
 
-                st.markdown(
-                    f"""
-                    <div class="risk-box">
-                    {issue}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+            if df.empty:
+                st.warning("No risk data available")
 
-        # =================================================
+            else:
+
+                df = df[[
+                    "clause_name",
+                    "severity",
+                    "score",
+                    "clause_excerpt",
+                    "reason"
+                ]]
+
+                df.columns = [
+                    "Risk Category",
+                    "Severity",
+                    "Score",
+                    "Evidence",
+                    "Reason"
+                ]
+
+                # -----------------------------
+                # COLOR FUNCTION (WORKING STYLE)
+                # -----------------------------
+                def highlight_severity(row):
+                    colors = []
+
+                    for col in row.index:
+                        if row["Severity"] == "HIGH":
+                            colors.append("background-color: #ffcccc")
+                        elif row["Severity"] == "MEDIUM":
+                            colors.append("background-color: #fff4cc")
+                        else:
+                            colors.append("background-color: #d6f5d6")
+
+                    return colors
+
+                styled_df = df.style.apply(highlight_severity, axis=1)
+
+                st.dataframe(styled_df, width="stretch")
+
+        # -----------------------------
         # DEBUG
-        # =================================================
+        # -----------------------------
         with debug_tab:
 
-            with st.expander("Debug Logs"):
+            st.write(data.get("segment_analysis", []))
 
-                for log in data.get("debug", []):
 
-                    st.write(log)
 
     # =====================================================
     # RIGHT PANEL CHATBOT
     # =====================================================
     with right_panel:
-
 
         st.markdown(
             '<div class="chat-title">🤖 AI Contract Copilot</div>',
@@ -435,11 +304,6 @@ if st.session_state.analysis:
             '<div class="chat-subtitle">Ask questions about your agreement</div>',
             unsafe_allow_html=True
         )
-
-            
-        # =================================================
-        # CHAT HISTORY
-        # =================================================
 
         chat_area = st.container(height=800)
 
@@ -453,68 +317,56 @@ if st.session_state.analysis:
                         st.write(chat["question"])
 
                     with st.chat_message("assistant"):
+
                         st.write(chat["answer"])
 
-                # REFERENCES
-                    seen_refs = set()
+                        seen_refs = set()
 
-                    refs_html = '<div class="reference-block">'
+                        refs_html = '<div class="reference-block">'
 
-                    for ref in chat.get("references", []):
+                        for ref in chat.get("references", []):
 
-                        page = ref.get("page", "unknown")
+                            page = ref.get("page", "unknown")
+                            text = ref.get("text", "")
 
-                        text = ref.get("text", "")
+                            clean_text = " ".join(text.split())
 
-                        clean_text = " ".join(text.split())
+                            if len(clean_text) > 220:
+                                short_text = clean_text[:220]
+                                short_text = short_text.rsplit(" ", 1)[0]
+                                short_text += "..."
+                            else:
+                                short_text = clean_text
 
-                        if len(clean_text) > 220:
+                            unique_key = f"{page}-{short_text}"
 
-                            short_text = clean_text[:220]
+                            if unique_key in seen_refs:
+                                continue
 
-                            short_text = short_text.rsplit(" ", 1)[0]
+                            seen_refs.add(unique_key)
 
-                            short_text += "..."
+                            refs_html += (
+                                f'<div class="reference-item">'
+                                f'📄 <b>Page {page}</b> — {short_text}'
+                                f'</div>'
+                            )
 
-                        else:
+                        refs_html += "</div>"
 
-                            short_text = clean_text
-
-                        unique_key = f"{page}-{short_text}"
-
-                        if unique_key in seen_refs:
-                            continue
-
-                        seen_refs.add(unique_key)
-
-                        refs_html += (
-                        f'<div class="reference-item">'
-                        f'📄 <b>Page {page}</b> — {short_text}'
-                        f'</div>'
+                        st.markdown(
+                            refs_html,
+                            unsafe_allow_html=True
                         )
 
-                    refs_html += "</div>"
-
-                    st.markdown(
-                        refs_html,
-                        unsafe_allow_html=True
-                    )
-
             else:
-
                 st.info(
                     "Start asking questions about your agreement."
                 )
-            
 
-# =================================================
-# QUERY LOGIC
-# =================================================
-            
         query = st.chat_input(
-        "Ask about clauses, liabilities, payment terms..."
+            "Ask about clauses, liabilities, payment terms..."
         )
-        
+
         if query:
 
             clean_query = (
@@ -563,8 +415,3 @@ if st.session_state.analysis:
 
                 except Exception as e:
                     st.error(f"Error: {e}")
-            
-            
-            
-
-
