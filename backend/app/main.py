@@ -11,3 +11,6 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title=settings.APP_NAME)
 
 app.include_router(contract.router, prefix="/api/v1")
+
+
+

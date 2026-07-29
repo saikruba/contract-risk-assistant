@@ -172,7 +172,7 @@ if uploaded_file and not st.session_state.uploaded:
 if st.sidebar.button("🔄 Reset Workspace", width="stretch"):
 
     try:
-        requests.post("http://127.0.0.1:8000/api/v1/reset")
+        requests.post("http://127.0.0.1:8000/api/v1/reset", timeout=10)
     except Exception as e:
         st.error(f"Backend reset failed: {e}")
 

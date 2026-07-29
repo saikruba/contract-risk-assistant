@@ -1,8 +1,12 @@
 import re
 import json
+import time
 
 from app.services.llm_service import call_llama
 from langfuse import get_client
+
+from concurrent.futures import ThreadPoolExecutor
+
 
 langfuse = get_client()
 
@@ -60,16 +64,12 @@ SEGMENT
 
 {segment}
 
-Instructions:
-
-- Extract all legal clauses.
-- Multiple clauses may exist.
+Analyze this contract segment.
 - Do not invent clauses.
 - Assign HIGH, MEDIUM or LOW severity.
-- Return one JSON object per clause.
-- Return [] if none exist.
 
-Return STRICT JSON:
+
+Return only valid JSON:
 
 [
 {{
@@ -119,15 +119,16 @@ def classify_risks(contract_text: str):
     # limit to first 15 segments
     segments = segments[:15]
 
-    SEGMENT_WISE_ANALYSIS = []
 
     # --------------------------
     # Segment-wise analysis
     # --------------------------
+    
+    
+    SEGMENT_WISE_ANALYSIS = []
+    
     for segment in segments:
-
         result = analyze_segment(segment)
-
         SEGMENT_WISE_ANALYSIS.extend(result)
 
     # --------------------------

@@ -1,5 +1,5 @@
 from app.schemas.contract_schema import ContractResponse
-from app.services.vector_service import store_chunks
+from app.services.vector_service import store_chunks, reset_db
 from app.services.agents.orchestrator import (
     run_multi_agent_pipeline
 )
@@ -94,6 +94,10 @@ def analyze_contract(file_path: str) -> ContractResponse:
         # -------------------------------
         # VECTOR STORE
         # -------------------------------
+        
+        # Clear previous contract vectors
+        reset_db()
+
         store_chunks(
             [chunk.page_content for chunk in chunks],
             [
